@@ -1,0 +1,41 @@
+{
+  "name": "mvvm-me",
+  "version": "v0.0.1",
+  "private": true,
+  "dependencies": {
+    "babel-polyfill": "6.26.0"
+  },
+  "scripts": {
+    "clean": "rimraf dist/*",
+    "uglify": "uglifyjs src/assets/js-libs/city-data.js -m -o src/assets/js-libs/city-data.min.js",
+    "start": "npm run clean && node scripts/devServer.js development",
+    "dev": "npm run clean && node scripts/devServer.js development",
+    "build": "npm run clean && npm run uglify && node scripts/build.js production",
+    "eslint": "eslint --config .eslintrc.js src/js/**/*.js",
+    "release": "node scripts/release.js",
+    "webpack": "webpack --config ./config/webpack.config.js --watch"
+  },
+  "pre-commit": [
+    "eslint"
+  ],
+  "devDependencies": {
+    "babel-core": "^6.26.0",
+    "babel-eslint": "^8.0.1",
+    "babel-loader": "^7.1.2",
+    "babel-plugin-syntax-dynamic-import": "^6.18.0",
+    "babel-plugin-transform-runtime": "^6.23.0",
+    "babel-preset-env": "^1.6.1",
+    "chalk": "^2.3.0",
+    "eslint": "^4.10.0",
+    "eslint-config-standard": "^10.2.1",
+    "eslint-plugin-import": "^2.8.0",
+    "eslint-plugin-node": "^5.2.1",
+    "eslint-plugin-promise": "^3.6.0",
+    "eslint-plugin-standard": "^3.0.1",
+    "ora": "^1.3.0",
+    "pre-commit": "^1.2.2",
+    "rimraf": "^2.6.2",
+    "uglify-js": "^3.1.8",
+    "webpack": "^3.9.1"
+  }
+}
