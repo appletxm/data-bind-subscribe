@@ -1,10 +1,36 @@
-import Observer from './observer'
+import EventHub from './event-hub'
+import Core from './core'
 
-const observer = new Observer()
-const data = {a: 1, b: 3, c: 6, newVal: {k: 6, h: 8}}
+window.eventHub = new EventHub()
+const eventId = eventHub.gnerateEventId('txm-event')
+const meta = {
+  template: '<div><p>{{name}} {{title}} {{userName}}</p><input type="text" value="{{userName}}" v-model="userName" placeholder="input user name" @input="$testInput"/><button @click="$testClick">change</button><p>this is bind value {{userName}}</p></div>',
+  data() {
+    return {
+      name: 'My',
+      title: 'data-binding function',
+      userName: ''
+    }
+  },
+  methods: {
+    $testClick(event) {
+      eventHub.trigger(eventId + '-update-data', {userName: ''})
+    },
 
-observer.setObserver(data)
+    $testInput(event) {
+      eventHub.trigger(eventId + '-update-data', {userName: event.target.value})
+    }
+  },
+  created() {
+    console.info('@@@@created@@@@')
+  },
+  mounted() {
+    console.info('@@@@mounted@@@@')
+  },
+  updated() {
+    console.info('@@@@updated@@@@')
+  }
+}
 
-console.info(data, data.b)
-
-/*https://segmentfault.com/a/1190000008584577 */
+const App = new Core(meta, eventId, document.querySelector('body'))
+App.boot()
