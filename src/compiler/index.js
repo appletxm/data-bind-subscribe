@@ -15,20 +15,18 @@ export default class Compiler {
   }
 
   getNodes () {
-    let analysNodesRes
+    let currentNodeTree
     let data = this.data
     this.html = this.template
 
-    analysNodesRes = this._analysNodes(this.html)
-    this.nodes = analysNodesRes.allNodes
-    this.parentNode = analysNodesRes.parentNode
+    currentNodeTree = this._getCurrentNodeTree(this.html)
+    this.nodes = currentNodeTree.allNodes
+    this.parentNode = currentNodeTree.parentNode
 
     let {cloneAllNodes, cloneParentNode} = this._getCloneNodes()
 
     cloneAllNodes.map((node) => {
-      node = (this._analysText(node, data))['node']
-      node = (this._analysAttributes(node, data))['node']
-      node = this._atachedEvent(node, data)
+      node = this._analysNodeTree(node, data)
     })
 
     return cloneParentNode
@@ -53,20 +51,7 @@ export default class Compiler {
     })
   }
 
-  _analysNodes (html) {
-    // let reg = /<([\w\d-\s]+)[//]{0,1}>/g
-    // let matched = ''
-    // let lastIndex = 0
-    // let nodes = []
-
-    // do {
-    //   reg.lastIndex = lastIndex
-    //   matched = reg.exec(html)
-    //   lastIndex = matched ? (matched[0].length + matched.index - 1) : lastIndex
-    //   console.info(matched[0], matched.index)
-    // } while (matched)
-
-    // let fragment = document.createDocumentFragment
+  _getCurrentNodeTree (html) {
     let div = document.createElement('div')
     let allNodes
 
@@ -78,6 +63,22 @@ export default class Compiler {
     })
 
     return {parentNode: div, allNodes}
+  }
+
+  _analysNodeTree (node, data) {
+    if (node.children.length <= 0) {
+      node = (this._analysText(node, data))['node']
+      node = (this._analysAttributes(node, data))['node']
+      node = this._atachedEvent(node, data)
+    } else {
+      let attrs = Array.prototype.slice.call(node.attributes)
+      let { attrKeys, attrValues } = this._getAttrKeysValues(node)
+
+      if (attrs && attrs.length > 0 && attrKeys.indexOf('@for') >= 0) {
+        node = this._analysForEach(node, data)
+      }
+    }
+    return node
   }
 
   _analysText (node, data) {
@@ -114,19 +115,60 @@ export default class Compiler {
 
   _atachedEvent (node, data) {
     let attrs = node.attributes
+    let args = []
 
     for (var i = 0; i < attrs.length; i++) {
       if (attrs[i]['nodeName'].indexOf('@input') >= 0) {
         node.addEventListener('input', (event) => {
-          window.eventHub.trigger(this.eventId + '-dom-event', event.target.getAttribute('@input'), event)
+          window.eventHub.trigger(this.eventId + '-dom-event', event.target.getAttribute('@input'), event, ...args)
         })
       }
+
       if (attrs[i]['nodeName'].indexOf('@click') >= 0) {
+        let params = attrs[i]['nodeValue'].match(/\((.+)\)/g)
+        if (params && params.length > 0) {
+          params = params[0].replace(/\(|\s|\)/g, '').split(',')
+          params.forEach((param) => {
+            args.push(data[param])
+          })
+        }
+
         node.addEventListener('click', (event) => {
-          window.eventHub.trigger(this.eventId + '-dom-event', event.target.getAttribute('@click'), event)
+          window.eventHub.trigger(this.eventId + '-dom-event', event.target.getAttribute('@click'), event, ...args)
         })
       }
     }
+
+    return node
+  }
+
+  _analysForEach (node, data) {
+    // let leafNodes = Array.from(node.childNodes)
+    let { attrKeys, attrValues, keyValue } = this._getAttrKeysValues(node)
+    let listKey = (/in\s(.+)/).exec(keyValue['@for'])[1].trim()
+    let needIndex = (/\(|\)/).exec(keyValue['@for'])
+    let itemKey, indexKey
+    let html = node.innerHTML
+
+    if (needIndex) { [itemKey, indexKey] = (/\((.+)\)/).exec(keyValue['@for'])[1].split(',')
+    }
+
+    itemKey = itemKey.trim()
+    indexKey = indexKey.trim()
+    node.innerHTML = ''
+
+    data[listKey].forEach((item, index) => {
+      let dataItem = {
+        [itemKey]: item,
+        [indexKey]: index
+      }
+      let {allNodes} = this._getCurrentNodeTree(html)
+
+      allNodes.map((leaf) => {
+        leaf = this._analysNodeTree(leaf, dataItem)
+        node.appendChild(leaf)
+      })
+    })
 
     return node
   }
@@ -135,14 +177,27 @@ export default class Compiler {
     let nodeChanged = false
 
     Object.keys(data).forEach((key) => {
-      let reg = new RegExp('\{\{' + key + '\}\}', 'g')
+      let reg = new RegExp('\\{\\{' + key + '(\\..[^\\{\\}]+)*' + '\\}\\}', 'g')
       nodeValue = nodeValue.replace(reg, (matchedValue) => {
-        // console.info(matchedValue, data[key])
-        return data[key]
+        if (matchedValue) {
+          return this._getValueFromContent(data, matchedValue)
+        }
       })
     })
 
     return nodeValue
+  }
+
+  _getValueFromContent (data, matchedValue) {
+    let labels = matchedValue.replace(/\{|\}/g, '').split('.')
+    let fnStr = ''
+
+    labels.map((label) => {
+      fnStr += "['" + label + "']"
+    })
+    // console.info(eval('(data' + fnStr + ')'))
+
+    return eval('(data' + fnStr + ')')
   }
 
   _getCloneNodes () {
@@ -156,5 +211,21 @@ export default class Compiler {
     cloneAllNodes = Array.prototype.slice.call(cloneParentNode.children)
 
     return {cloneAllNodes, cloneParentNode}
+  }
+
+  _getAttrKeysValues (node) {
+    let attrValues = []
+    let attrKeys = []
+    let keyValue = {}
+    let attrs
+
+    attrs = Array.from(node.attributes)
+    attrs.forEach((attr) => {
+      attrValues.push(attr.nodeValue)
+      attrKeys.push(attr.nodeName)
+      keyValue[attr.nodeName] = attr.nodeValue
+    })
+
+    return {attrKeys, attrValues, keyValue}
   }
 }

@@ -38,11 +38,19 @@ export default class Core {
   }
 
   _handleDomEvent (eventName, event) {
-    let methods = this.meta.methods
-    let fn = methods[eventName]
+    let fn, methods, fnName, params
+
+    fnName = eventName.match(/.[^\(]+/)[0]
+    methods = this.meta.methods
+    fn = methods[fnName]
 
     if (fn && typeof fn === 'function') {
-      fn(event)
+      params = arguments.length <= 2 ? [] : Array.from(arguments).slice(2)
+      if (params && params.length >= 1) {
+        fn(...params)
+      } else {
+        fn(event)
+      }
     }
   }
 

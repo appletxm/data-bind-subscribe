@@ -2,6 +2,11 @@
   "name": "mvvm-me",
   "version": "v0.0.1",
   "private": true,
+  "keywords": [
+    "ES6",
+    "MVVM"
+  ],
+  "description": "An simple javascript MVVM framwork based es6 and user the subscribe-publish mode",
   "dependencies": {
     "babel-polyfill": "6.26.0"
   },
